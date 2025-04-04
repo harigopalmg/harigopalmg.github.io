@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Color Analyser</title>
+</head>
+
+<body>
+  <header>
+    <h1 style="text-align: center;">Color Variables Analyser</h1>
+    <label for="fileuploader">Choose a css file:</label>
+    <input id="fileuploader" type="file" accept=".css" onchange="loadFile()">
+    <section>
+      <label for="enableDeclGp">DeclarationGrouping</label>
+      <input type="checkbox" name="" id="enableDeclGp">
+      <label for="enableModuleGp">ModuleGrouping</label>
+      <input type="checkbox" name="" id="enableModuleGp">
+      <label for="enableSorting">Sort</label>
+      <input type="checkbox" name="" id="enableSorting">
+      <label for="enableCompare">Color Compare</label>
+      <input type="checkbox" name="" id="enableCompare">
+      <input id="compareColor" type="text" class="compareSelector" placeholder="Compare color">
+    </section>
+  </header>
+  <main class="colorsMain"></main>
+  <style>
+    html {
+      color: var(--color-text);
+      font-family: sans-serif;
+    }
+
+    h4 {
+      color: wheat;
+      font-weight: bolder;
+      background-color: teal;
+      text-transform: capitalize;
+      padding: 10px 20px;
+    }
+
+    .colorsMain {
+      overflow: auto;
+      height: calc(100vh - 200px);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(50px, 200px));
+      grid-auto-rows: max-content;
+      gap: 10px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .colorsMain li {
+      padding: 1rem;
+      list-style: none;
+      border: 1px solid #dbdbdb;
+    }
+
+    .color__swatch,
+    .color__swatch_compare {
+      background-color: var(--color);
+      border-radius: 2px 2px 0 0;
+      display: block;
+      height: 7rem;
+    }
+
+    .color__details {
+      padding: 0.5rem;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-wrap: break-word;
+    }
+
+    section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 50px;
+      margin: 10px 0;
+      border-top: 2px solid lightgrey;
+      border-bottom: 2px solid lightgrey;
+    }
+
+    section label {
+      padding-left: 30px;
+      user-select: none;
+    }
+
+    .compareSelector {
+      padding: 10px;
+      display: none;
+    }
+    #enableCompare:checked + .compareSelector {
+      display: block !important;
+    }
+    body:has(#enableDeclGp:not(:checked)) h4.decl,
+    body:has(#enableModuleGp:not(:checked)) h4.modl {
+      display: none;
+    }
+    body:has(#enableDeclGp:checked) h4.decl,
+    body:has(#enableModuleGp:checked) h4.modl {
+      grid-column: 1 / none;
+    }
+  </style>
+  <script>
+
+    let reader = new FileReader();
+    let decodedResult = '';
+    const declGroupControl = document.querySelector('#enableDeclGp')
+    const moduleGroupControl = document.querySelector('#enableModuleGp')
+    const sortControl = document.querySelector('#enableSorting')
+
+    function loadFile() {
+      if (event.target.files[0]) {
+        decodedResult = '';
+        document.querySelector(".colorsMain").innerHTML = ''
+        reader = new FileReader();
+        reader.readAsDataURL(event.target.files[0]);
+        registerEvents()
+      }
+    }
+
+
+    function registerEvents() {
+      reader.addEventListener('load', (event) => {
+        const result = event.target.result;
+        decodedResult = atob(result.split(',')[1]);
+        processDecodedData();
+      })
+      declGroupControl.addEventListener('change', (e) => {
+        processDecodedData();
+      })
+      moduleGroupControl.addEventListener('change', (e) => {
+        processDecodedData();
+      })
+      sortControl.addEventListener('change', (e) => {
+        processDecodedData();
+      })
+      document.getElementById("compareColor").addEventListener('input', (e) => {
+        comparator(e.target.value);
+      })
+    }
+
+    function processDecodedData() {
+      const colorGroup = {}
+      if (declGroupControl.checked) {
+        decodedResult.split('}').forEach(e => {
+          const declName = e.split('{')[0];
+          const colorList = e.split('{')[1]?.match(/(--)\w.+;/gi)?.filter(el => ["#", "rgb", "rgba", "hsl", "hsla"].some(e => el.includes(e.toLowerCase())))
+          if(colorList && colorList.length) {
+            if (!colorGroup[declName]) colorGroup[declName] = [];
+            colorGroup[declName] = colorGroup[declName].concat(colorList);
+          }
+        })
+      } else if (moduleGroupControl.checked) {
+        const extractedColors = decodedResult.match(/(--)\w.+;/gi).filter(el => ["#", "rgb", "rgba", "hsl", "hsla"].some(e => el.includes(e.toLowerCase())));
+        extractedColors.forEach(el => { 
+          const groupType = el.split(/-(?!.*-)/g)[0];
+          if (!colorGroup[groupType]) {
+            colorGroup[groupType] = []
+          };
+          colorGroup[groupType].push(el);
+        });
+      } else {
+        const extractedColors = decodedResult.match(/(--)\w.+;/gi).filter(el => ["#", "rgb", "rgba", "hsl", "hsla"].some(e => el.includes(e.toLowerCase())));
+        colorGroup['ALL'] = extractedColors
+      }
+      bindToElem(colorGroup);
+
+    }
+
+    function bindToElem(cssCustomPropIndex) {
+      let el = '';
+      for (const i in cssCustomPropIndex) {
+        if (sortControl.checked) {
+          cssCustomPropIndex[i].sort((a, b) => a.split(':')[1].trim() > b.split(':')[1].trim() ? -1 : 1);
+        }
+        el += `<h4 class=${declGroupControl.checked ? 'decl': 'modl'}>
+          ${i.length < 3 ? 'general' : i.replace(/-/g, '')}
+          </h4>`;
+        el += cssCustomPropIndex[i].map(el => `<li>
+        <div class="color__details">
+            <span title="${el.split(':')[0]}">${el.split(':')[0]}</span></br>
+            <span title="${el.split(':')[1]}">${el.split(':')[1]}</span>
+          </div>
+        <b class="color__swatch" style="--color: ${el.split(':')[1]}"></b>
+        </li>`).join('');
+
+      }
+      document.querySelector(".colorsMain").innerHTML = el
+    }
+
+    function comparator(cColor) {
+      var ele = document.getElementsByClassName('color__swatch');
+
+      var rele = document.getElementsByClassName('color__swatch_compare');
+      [...rele].forEach(i => {
+        i.parentElement.removeChild(i);
+      })
+
+
+      if (cColor) {
+        [...ele].forEach((i) => {
+          i.parentElement.innerHTML += `<b class="color__swatch_compare" style="--color:${cColor}"></b>`;
+        })
+      }
+    }
+
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <header>Icon-Sprite Viewer</header>
+    <article>
+        <label for="fileuploader">Choose a svg sprite image:</label>
+        <input id="fileuploader" type="file" accept=".svg">
+        <span style="flex: 1;"></span>
+        <label for="colorSelector">Change Color</label>
+        <input type="color" id="colorSelector">
+    </article>
+    <div style="display: none;" id="displayelement"></div>
+    <section id="displaySection"></section>
+</body>
+<style>
+    body {
+        font-family: sans-serif;
+    }
+    article {
+        display: flex;
+        gap: 10px;
+        padding: 20px;
+        align-items: center;
+        border-bottom: 1px solid lightgray;
+    }
+    header {
+        font-weight: bold;
+        font-size: 2rem;
+        text-align: center;
+        border-bottom: 1px solid lightgrey;
+        padding: 10px;
+        margin: 10px;
+    }
+    section {
+        overflow: auto;
+        height: calc(100vh - 155px);
+    }
+
+    section svg {
+        border: 2px solid white;
+        background: #bfbfbf4f;
+        padding: 10px
+    }
+</style>
+<script>
+    const elem = document.getElementById("displayelement");
+    const sectionElem = document.getElementById("displaySection");
+    document.getElementById('fileuploader').addEventListener("change" , (file) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', (event) => {
+        const result = event.target.result;
+        const decodedResult = atob(result.replace('data:image/svg+xml;base64,', ''));
+        elem.innerHTML = decodedResult;
+        const symbols = elem.getElementsByTagName('symbol');
+
+        sectionElem.innerHTML = "";
+        let createdStr = ``;
+        
+        const zoomfactor = 1;
+        for (let index = 0; index < symbols.length; index++) {
+            const element = symbols[index];
+            const fillVal = element.getAttribute('fill') || "";
+            const strokeVal = element.getAttribute('stroke') || "";
+            createdStr += `
+            <span style="display:inline-flex;flex-direction: column;align-items: center;margin: 10px;border: 1px solid lightgray;padding: 5px;font-family: monospace;">
+                <svg width="100px" height="100px"
+                viewBox='${element.viewBox.baseVal.x * zoomfactor+" "+element.viewBox.baseVal.y * zoomfactor+" "+element.viewBox.baseVal.width * zoomfactor+" "+element.viewBox.baseVal.height * zoomfactor}'
+                fill='${fillVal}' stroke='${strokeVal}'>
+                    <title>${element.id}</title>
+                    ${element.innerHTML}
+                </svg>
+                <span>${element.id}</span>
+            </span>`;
+        }
+        sectionElem.innerHTML += createdStr
+    });
+    reader.readAsDataURL(file.target.files[0]);
+    });
+    document.getElementById('colorSelector').addEventListener('input', (evt) => {
+        sectionElem.style.color = evt.target.value
+    })
+</script>
+</html>
